@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zkracovač URL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:#0b1a33; --navy2:#13294d; --blue:#3381c9; --sky:#8fd0ff; --amber:#ffc23d;
+    --mist:#f2f7fc; --ink:#10203a; --muted:#5d6f88; --line:#d9e5f2; --card:#fff;
+  }
+  * { box-sizing:border-box; }
+  html { background:var(--navy); }
+  body { margin:0; background:var(--mist); color:var(--ink); font:16px/1.6 "Plus Jakarta Sans",system-ui,sans-serif; display:flex; flex-direction:column; min-height:100vh; }
+  .hero { background:radial-gradient(900px 420px at 85% -10%,rgba(51,129,201,.75),transparent 60%),radial-gradient(600px 360px at 0% 110%,rgba(143,208,255,.25),transparent 60%),var(--navy); color:#fff; padding:64px 20px 120px; }
+  .wrap { max-width:780px; margin:0 auto; }
+  h1 { font-size:clamp(2rem,6vw,3.6rem); line-height:1.1; min-height:1.1em; font-weight:800; letter-spacing:-.03em; margin:0 0 14px; }
+  .caret { display:inline-block; width:.07em; height:.85em; margin-left:.06em; background:var(--amber); vertical-align:-.06em; animation:pulse .9s ease-in-out infinite; }
+  .caret.typing { animation:none; opacity:1; }
+  .caret.off { display:none; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.1; } }
+  .lead { color:#b9cbe6; font-size:1.08rem; margin:0 0 28px; max-width:560px; }
+  .pv { display:flex; align-items:center; width:100%; min-height:54px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:999px; padding:12px 22px; font:500 1rem "JetBrains Mono",ui-monospace,monospace; }
+  .pv::before { content:""; flex:0 0 9px; height:9px; border-radius:50%; background:var(--sky); margin-right:14px; }
+  .pvt { flex:1; min-width:0; overflow:hidden; white-space:nowrap; color:#b9cbe6; -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent); mask-image:linear-gradient(90deg,#000 88%,transparent); }
+  .pvt .host { color:#b9cbe6; }
+  .pvt .slug { color:var(--amber); }
+  main { flex:1; }
+  .card { background:var(--card); border-radius:20px; box-shadow:0 24px 60px -20px rgba(11,26,51,.35); padding:30px; margin-top:-70px; }
+  label { display:block; font-weight:700; font-size:.92rem; margin:20px 0 7px; }
+  label:first-child { margin-top:0; }
+  input, textarea { width:100%; padding:13px 15px; border:1.5px solid var(--line); border-radius:12px; font:inherit; background:var(--mist); color:var(--ink); transition:border-color .15s, background .15s; }
+  input:focus, textarea:focus { outline:none; border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(51,129,201,.18); }
+  input::placeholder { color:#93a4bb; }
+  .row { display:flex; gap:14px; }
+  .row > div { flex:1; }
+  .row > div.base { flex:0 0 46%; }
+  input.final { font:500 .98rem "JetBrains Mono",ui-monospace,monospace; background:#e6f1fb; border-color:#b7d6f0; color:var(--navy2); }
+  input.final.ph { color:#6f86a3; }
+  .hint { font-size:.84rem; color:var(--muted); margin-top:7px; }
+  button { font:inherit; font-weight:700; cursor:pointer; border:0; border-radius:12px; }
+  button:focus-visible { outline:3px solid var(--sky); outline-offset:2px; }
+  #go { margin-top:24px; width:100%; padding:15px; font-size:1.05rem; background:var(--amber); color:var(--navy); transition:transform .12s; box-shadow:0 8px 20px -8px rgba(255,194,61,.9); }
+  #go:hover { transform:translateY(-1px); }
+  .err { color:#c0392b; margin-top:12px; min-height:1.4em; font-weight:500; }
+  .result { display:none; margin-top:28px; background:var(--navy); color:#fff; border-radius:16px; padding:24px; }
+  .short { font-size:1.4rem; font-weight:800; color:var(--sky); word-break:break-all; letter-spacing:-.01em; }
+  .arrow { color:#9fb3d1; font-size:.88rem; word-break:break-all; margin:6px 0 16px; }
+  .ghost { background:var(--blue); color:#fff; padding:10px 18px; }
+  .tabs { display:flex; gap:8px; margin:24px 0 10px; flex-wrap:wrap; }
+  .tabs button { background:rgba(255,255,255,.08); color:#cfe0f7; padding:7px 14px; font-size:.88rem; }
+  .tabs button[aria-pressed="true"] { background:#fff; color:var(--navy); }
+  textarea.code { font:400 13px/1.55 "JetBrains Mono",ui-monospace,monospace; height:130px; resize:vertical; background:#081327; color:#d6e6fb; border-color:rgba(255,255,255,.12); }
+  textarea.code:focus { background:#081327; }
+  .note { font-size:.88rem; color:#9fb3d1; margin-top:10px; }
+  ul#hist { list-style:none; padding:0; margin:28px 0 0; }
+  ul#hist li { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:10px; padding:11px 14px; margin-bottom:10px; font-size:.9rem; word-break:break-all; color:var(--muted); }
+  ul#hist b { color:var(--blue); }
+  .space { height:40px; }
+  footer { background:var(--navy); color:#9fb3d1; text-align:center; padding:26px 20px; font-size:.92rem; }
+  footer a { color:var(--amber); font-weight:700; text-decoration:none; }
+  footer a:hover { text-decoration:underline; }
+  @media (max-width:600px){ .card{padding:22px;} .row{flex-direction:column;gap:0;} .row > div.base{flex:1;} }
+  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } .caret { animation:none; } }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <h1 aria-label="Krátký odkaz"><span id="hl" aria-hidden="true">KRÁTKÝ ODKAZ</span><span class="caret" id="caret" aria-hidden="true"></span></h1>
+    <p class="lead">Vložte adresu, zvolte krátký název a hned dostanete krátký odkaz i hotové pravidlo pro přesměrování.</p>
+    <div class="pv" aria-hidden="true"><span class="pvt" id="pvt"><span class="host">vasedomena.cz/</span><span class="slug">vastext</span></span></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="card">
+      <label for="long">Dlouhá adresa</label>
+      <input id="long" type="url" placeholder="https://vaseurl.cz/dlouhy-odkaz" autocomplete="off">
+
+      <div class="row">
+        <div class="base">
+          <label for="base">Vaše doména</label>
+          <input id="base" type="url" placeholder="https://vasedomena.cz">
+        </div>
+        <div>
+          <label for="slug">Krátký název</label>
+          <input id="slug" type="text" placeholder="vastext" autocomplete="off">
+        </div>
+      </div>
+
+      <label for="final">Výsledná adresa</label>
+      <input id="final" class="final ph" type="text" readonly value="https://vasedomena.cz/vastext">
+      <div class="hint">Mezery, diakritika a zvláštní znaky se v krátkém názvu upraví automaticky.</div>
+
+      <button id="go">Zkrátit odkaz</button>
+      <div class="err" id="err" role="alert"></div>
+
+      <section class="result" id="result" aria-live="polite">
+        <div class="short" id="short"></div>
+        <div class="arrow" id="target"></div>
+        <button class="ghost" id="copy">Kopírovat krátkou adresu</button>
+
+        <div class="tabs" role="group" aria-label="Typ pravidla">
+          <button data-t="htaccess" aria-pressed="true">Apache (.htaccess)</button>
+          <button data-t="nginx" aria-pressed="false">Nginx</button>
+          <button data-t="netlify" aria-pressed="false">Netlify / Cloudflare</button>
+          <button data-t="html" aria-pressed="false">Statické HTML</button>
+        </div>
+        <textarea class="code" id="code" readonly></textarea>
+        <div class="note" id="note"></div>
+      </section>
+    </section>
+
+    <ul id="hist"></ul>
+    <div class="space"></div>
+  </div>
+</main>
+
+<footer>Tato stránka běží díky <a href="https://namify.cz" target="_blank" rel="noopener">namify.cz</a></footer>
+
+<script>
+/* Animace v hlavičce: texty se střídají a stále opakují */
+(function(){
+  var hl = document.getElementById("hl"), pvt = document.getElementById("pvt"), caret = document.getElementById("caret");
+  var H1 = "DLOUHÝ ODKAZ?", H2 = "KRÁTKÝ ODKAZ";
+  var LONG = "https://vaseurl.cz/clanky/01a12ae2-8eb0-7071-aef0-e949ad09fabb/tady-je-opravdu-dlouhy-nazev-clanku-ktery-nikdo-neopise";
+  var SHORT = "vasedomena.cz/vastext";
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function setLong(s){ pvt.textContent = s; }
+  function setShort(s){
+    pvt.textContent = "";
+    var k = s.indexOf("/"), i = k < 0 ? s.length : k + 1;
+    var a = document.createElement("span"); a.className = "host"; a.textContent = s.slice(0, i);
+    var b = document.createElement("span"); b.className = "slug"; b.textContent = s.slice(i);
+    pvt.appendChild(a); pvt.appendChild(b);
+  }
+  function draw(body, isShort){ isShort ? setShort(body) : setLong(body); }
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { caret.className = "caret off"; return; }
+
+  async function type(head, body, isShort, ms){
+    caret.classList.add("typing");
+    for (var i = 1; i <= head.length; i++){
+      hl.textContent = head.slice(0, i);
+      draw(body.slice(0, Math.round(i * body.length / head.length)), isShort);
+      await sleep(ms);
+    }
+    caret.classList.remove("typing");
+  }
+  async function erase(head, body, isShort, ms){
+    caret.classList.add("typing");
+    for (var i = head.length - 1; i >= 0; i--){
+      hl.textContent = head.slice(0, i);
+      draw(body.slice(0, Math.round(i * body.length / head.length)), isShort);
+      await sleep(ms);
+    }
+    caret.classList.remove("typing");
+  }
+  (async function loop(){
+    hl.textContent = ""; pvt.textContent = "";
+    await sleep(400);
+    while (true){
+      await type(H1, LONG, false, 40);
+      await sleep(4500);
+      await erase(H1, LONG, false, 30);
+      await sleep(250);
+      await type(H2, SHORT, true, 45);
+      await sleep(4500);
+      await erase(H2, SHORT, true, 35);
+      await sleep(250);
+    }
+  })();
+})();
+
+/* Zkracovač */
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var current = null, tab = "htaccess", history = [];
+
+  function slugify(s){
+    return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+  }
+  function suggest(url){
+    try {
+      var parts = new URL(url).pathname.split("/").filter(Boolean);
+      var last = parts[parts.length-1] || "";
+      return slugify(last).split("-").slice(0,3).join("-");
+    } catch(e){ return ""; }
+  }
+  function updateFinal(){
+    var b = $("base").value.trim().replace(/\/+$/,"");
+    var s = slugify($("slug").value);
+    $("final").value = (b || "https://vasedomena.cz") + "/" + (s || "vastext");
+    $("final").classList.toggle("ph", !b || !s);
+  }
+
+  $("long").addEventListener("input", function(){
+    var v = this.value.trim();
+    try { if (!$("base").value) $("base").value = new URL(v).origin; } catch(e){}
+    if (!$("slug").dataset.touched) $("slug").value = suggest(v);
+    updateFinal();
+  });
+  $("slug").addEventListener("input", function(){ this.dataset.touched = "1"; updateFinal(); });
+  $("base").addEventListener("input", updateFinal);
+
+  function rules(base, slug, target){
+    var path = "/" + slug;
+    return {
+      htaccess: { code: "Redirect 301 " + path + " " + target,
+                  note: "Přidejte řádek do souboru .htaccess v kořeni webu." },
+      nginx:    { code: "location = " + path + " { return 301 " + target + "; }",
+                  note: "Vložte do bloku server { … } a načtěte konfiguraci znovu." },
+      netlify:  { code: path + "  " + target + "  301",
+                  note: "Přidejte řádek do souboru _redirects v kořeni publikované složky." },
+      html:     { code: '<!DOCTYPE html>\n<html lang="cs"><head><meta charset="utf-8">\n<title>Přesměrování</title>\n<link rel="canonical" href="' + target + '">\n<meta http-equiv="refresh" content="0; url=' + target + '">\n</head><body><a href="' + target + '">Pokračovat</a></body></html>',
+                  note: "Uložte jako " + slug + "/index.html – funguje na jakémkoli statickém hostingu, ale jde o přesměrování bez stavu 301." }
+    };
+  }
+
+  function render(){
+    if (!current) return;
+    var r = rules(current.base, current.slug, current.target)[tab];
+    $("code").value = r.code;
+    $("note").textContent = r.note;
+    var btns = document.querySelectorAll(".tabs button");
+    for (var i=0;i<btns.length;i++) btns[i].setAttribute("aria-pressed", btns[i].dataset.t === tab);
+  }
+
+  function renderHistory(){
+    $("hist").innerHTML = "";
+    history.forEach(function(h){
+      var li = document.createElement("li");
+      var b = document.createElement("b"); b.textContent = h.short;
+      li.appendChild(b);
+      li.appendChild(document.createTextNode(" → " + h.target));
+      $("hist").appendChild(li);
+    });
+  }
+
+  $("go").addEventListener("click", function(){
+    $("err").textContent = "";
+    var target = $("long").value.trim();
+    var base = $("base").value.trim().replace(/\/+$/,"");
+    var slug = slugify($("slug").value);
+    try { new URL(target); } catch(e){ $("err").textContent = "Zadejte celou adresu včetně https://."; return; }
+    try { new URL(base); } catch(e){ $("err").textContent = "Zadejte svou doménu, například https://vasedomena.cz."; return; }
+    if (!slug){ $("err").textContent = "Zadejte krátký název, například vastext."; return; }
+    current = { base: base, slug: slug, target: target, short: base + "/" + slug };
+    $("short").textContent = current.short;
+    $("target").textContent = "vede na " + target;
+    $("result").style.display = "block";
+    history.unshift(current); renderHistory(); render();
+  });
+
+  $("copy").addEventListener("click", function(){
+    var btn = this;
+    navigator.clipboard.writeText(current.short).then(function(){
+      btn.textContent = "Zkopírováno"; setTimeout(function(){ btn.textContent = "Kopírovat krátkou adresu"; }, 1500);
+    });
+  });
+
+  document.querySelector(".tabs").addEventListener("click", function(e){
+    if (e.target.dataset.t){ tab = e.target.dataset.t; render(); }
+  });
+
+  updateFinal();
+})();
+</script>
+</body>
+</html>
